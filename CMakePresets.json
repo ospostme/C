@@ -1,0 +1,75 @@
+{
+  "version": 8,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+
+  "configurePresets": [
+    {
+      "name": "base",
+      "displayName": "Base (Debug + Release)",
+      "description": "Normal development builds. Debug and Release both live in build/ — select at build time with --config. Requires conan_toolchain.cmake — run `conan install . --output-folder=build --build=missing` first.",
+      "binaryDir": "${sourceDir}/build",
+      "generator": "Ninja Multi-Config",
+      "toolchainFile": "${sourceDir}/build/conan_toolchain.cmake"
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage",
+      "description": "Coverage-instrumented build. Uses a separate binaryDir (build-coverage/) so debug and coverage builds coexist without a full recompile when switching.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build-coverage",
+      "cacheVariables": { "ENABLE_COVERAGE": "ON" }
+    },
+    {
+      "name": "sanitize",
+      "displayName": "Sanitize (ASan + UBSan)",
+      "description": "Sanitizer build. Uses a separate binaryDir (build-sanitize/) so it coexists with debug and coverage builds.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build-sanitize",
+      "cacheVariables": { "ENABLE_SANITIZERS": "ON" }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "debug",           "configurePreset": "base",     "configuration": "Debug"   },
+    { "name": "release",         "configurePreset": "base",     "configuration": "Release" },
+    { "name": "coverage",        "configurePreset": "coverage", "configuration": "Debug"   },
+    { "name": "sanitize",        "configurePreset": "sanitize", "configuration": "Debug"   },
+    { "name": "coverage-report", "configurePreset": "coverage", "configuration": "Debug",  "targets": ["coverage-report"] },
+    { "name": "format",          "configurePreset": "base",     "targets": ["format"]       },
+    { "name": "check-format",    "configurePreset": "base",     "targets": ["check-format"] }
+  ],
+
+  "testPresets": [
+    { "name": "debug",    "configurePreset": "base",     "configuration": "Debug"   },
+    { "name": "release",  "configurePreset": "base",     "configuration": "Release" },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "configuration": "Debug",
+      "environment": { "LLVM_PROFILE_FILE": "${sourceDir}/build-coverage/Debug/%p.profraw" }
+    },
+    { "name": "sanitize", "configurePreset": "sanitize", "configuration": "Debug"   }
+  ],
+
+  "workflowPresets": [
+    {
+      "name": "coverage",
+      "displayName": "Full Coverage Workflow",
+      "steps": [
+        { "name": "coverage",        "type": "configure" },
+        { "name": "coverage",        "type": "build"     },
+        { "name": "coverage",        "type": "test"      },
+        { "name": "coverage-report", "type": "build"     }
+      ]
+    },
+    {
+      "name": "sanitize",
+      "displayName": "Build + Test with Sanitizers",
+      "steps": [
+        { "name": "sanitize", "type": "configure" },
+        { "name": "sanitize", "type": "build"     },
+        { "name": "sanitize", "type": "test"      }
+      ]
+    }
+  ]
+}

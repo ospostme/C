@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - -std=c11
+    - -Wall
+    - -Wextra
+    - -Iinclude   # fallback until compile_commands.json symlink is created
+  # compile_commands.json is a symlink to build/compile_commands.json
+  CompilationDatabase: .

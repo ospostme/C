@@ -1,0 +1,7 @@
+build/
+coverage/lcov.info
+compile_commands.json
+
+# Conan re-generates this on every `conan install` — not tracked
+CMakeUserPresets.json
+.cache/
