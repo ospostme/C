@@ -305,6 +305,29 @@ Each framework reports the same bugs differently:
 ]cu / [cu    →  jump to next/previous uncovered line
 ```
 
+**`<leader>Cc` vs `<leader>cT` vs cmake-tools presets**
+
+These three things live in separate worlds:
+
+| Key | What it does | Reads cmake-tools preset? |
+|---|---|---|
+| `<leader>Cc` | Full pipeline: configure → build → test → report | No — hardcoded to `coverage` preset |
+| `<leader>cT` | Fast path: test + report only (skips configure+build) | No — hardcoded to `coverage` preset |
+| `<leader>cp` | Pick active cmake-tools preset (e.g. `debug`) | — sets the preset |
+| `<leader>cl` | Pick launch target for DAP debugging | — reads cmake-tools preset |
+
+`<leader>cp` (preset selection) only affects `<leader>cb` (build) and `<leader>td` (DAP debug). It has **no effect** on `<leader>Cc` or `<leader>cT` — those always operate on the `coverage` binaryDir (`build-coverage/`).
+
+**When to use which:**
+```
+First run or after source changes  →  <leader>Cc   (full pipeline, ~slow)
+Re-run tests, binary already built →  <leader>cT   (test + report only, fast)
+Debug a binary                     →  <leader>cp → <leader>cl → <leader>td
+
+If debug preset is active in cmake-tools and you press <leader>cT:
+→ ctest still targets build-coverage/ — useless unless that dir was built first.
+```
+
 **From terminal** (three-step):
 ```bash
 # Step 1: configure + build with profiling instrumentation
