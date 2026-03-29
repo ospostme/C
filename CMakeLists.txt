@@ -37,6 +37,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ─── Coverage ────────────────────────────────────────────────────────────────
 option(ENABLE_COVERAGE "Enable llvm-cov instrumentation" OFF)
 
+# Locate LLVM tools at configure time — only needed when coverage is enabled.
+# macOS: Apple ships llvm-profdata/llvm-cov via xcrun (Xcode toolchain).
+# Linux: tools are on PATH directly, possibly versioned (llvm-profdata-18, etc.).
+if(ENABLE_COVERAGE)
+    if(APPLE)
+        find_program(XCRUN xcrun REQUIRED)
+        set(LLVM_PROFDATA_CMD ${XCRUN} llvm-profdata)
+        set(LLVM_COV_CMD      ${XCRUN} llvm-cov)
+    else()
+        find_program(LLVM_PROFDATA_CMD
+            NAMES llvm-profdata llvm-profdata-18 llvm-profdata-17 llvm-profdata-16
+            REQUIRED)
+        find_program(LLVM_COV_CMD
+            NAMES llvm-cov llvm-cov-18 llvm-cov-17 llvm-cov-16
+            REQUIRED)
+    endif()
+endif()
+
 function(enable_coverage target)
     if(NOT ENABLE_COVERAGE)
         return()
@@ -66,17 +84,28 @@ endfunction()
 find_package(GTest CONFIG REQUIRED)
 find_package(cmocka CONFIG REQUIRED)
 
-# Criterion: not in Conan Center — installed via Homebrew (brew install criterion).
-# Search standard paths + Homebrew on Apple Silicon and Intel.
+# Criterion: not in Conan Center — installed via system package manager.
+#   macOS:  brew install criterion
+#   Linux:  apt install libcriterion-dev  (or build from source)
 find_path(CRITERION_INCLUDE_DIR criterion/criterion.h
-    HINTS /opt/homebrew/include /usr/local/include)
+    HINTS
+        /opt/homebrew/include       # macOS Apple Silicon
+        /usr/local/include          # macOS Intel
+        /usr/include)               # Linux standard
 find_library(CRITERION_LIB criterion
-    HINTS /opt/homebrew/lib /usr/local/lib)
+    HINTS
+        /opt/homebrew/lib           # macOS Apple Silicon
+        /usr/local/lib              # macOS Intel
+        /usr/lib
+        /usr/lib/x86_64-linux-gnu   # Debian/Ubuntu x86_64
+        /usr/lib/aarch64-linux-gnu) # Debian/Ubuntu ARM64
 if(CRITERION_INCLUDE_DIR AND CRITERION_LIB)
     message(STATUS "Criterion found: ${CRITERION_LIB}")
     set(CRITERION_FOUND TRUE)
 else()
-    message(STATUS "Criterion not found — skipping criterion tests. Install with: brew install criterion")
+    message(STATUS "Criterion not found — skipping criterion tests.\n"
+        "  macOS: brew install criterion\n"
+        "  Linux: apt install libcriterion-dev")
     set(CRITERION_FOUND FALSE)
 endif()
 
@@ -168,10 +197,10 @@ if(ENABLE_COVERAGE)
     # redirection (>) works here. The regex is single-quoted so that `|` is not
     # interpreted as a pipe operator by the shell. Same pattern as CPP/CMakeLists.txt.
     add_custom_target(coverage-report
-        COMMAND xcrun llvm-profdata merge -sparse
+        COMMAND ${LLVM_PROFDATA_CMD} merge -sparse
             ${CMAKE_BINARY_DIR}/Debug/*.profraw
             -o ${CMAKE_BINARY_DIR}/coverage.profdata
-        COMMAND xcrun llvm-cov export
+        COMMAND ${LLVM_COV_CMD} export
             ${CMAKE_BINARY_DIR}/Debug/tests_gtest
             ${CRITERION_OBJ_ARGS}
             -object ${CMAKE_BINARY_DIR}/Debug/tests_cmocka_validators
