@@ -1,4 +1,4 @@
-build/
+build*/
 coverage/lcov.info
 compile_commands.json
 
